@@ -43,6 +43,12 @@ input,select,textarea{font:inherit;padding:10px;border:1px solid var(--line);bor
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .primary{padding:12px;border:0;border-radius:8px;background:var(--ink);color:var(--bg);font:inherit;font-weight:600;cursor:pointer}
 .small{padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font:inherit;cursor:pointer}
+.sw{width:56px;height:32px;border-radius:16px;border:1px solid var(--line);background:var(--line);position:relative;cursor:pointer;flex:none;padding:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--card);transition:left .15s}
+.sw[aria-checked="true"]{background:var(--good);border-color:var(--good)}
+.sw[aria-checked="true"].lim{background:var(--bad);border-color:var(--bad)}
+.sw[aria-checked="true"]::after{left:27px}
+.act:disabled{opacity:.35;cursor:default}
 .empty{color:var(--muted);text-align:center;padding:24px}
 </style>
 </head>
@@ -54,22 +60,38 @@ input,select,textarea{font:inherit;padding:10px;border:1px solid var(--line);bor
 </main>
 <script>
 var KEY="routine-tracker-v1",S={habits:[],logs:[]},tab="track";
-function load(){try{var r=localStorage.getItem(KEY);if(r){S=JSON.parse(r);S.m=S.m||{};return}}catch(e){}
+function load(){try{var r=localStorage.getItem(KEY);if(r){S=JSON.parse(r);S.m=S.m||{};if(migrate())try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}return}}catch(e){}
 S={habits:[
-{id:"a1",name:"Aerobic workout",cat:"Fitness",type:"build",period:"week",target:3},
+{id:"a1",name:"Aerobic workout",cat:"Health",type:"build",period:"week",target:3},
 {id:"a2",name:"Vacuum the house",cat:"Chores",type:"build",period:"week",target:1},
 {id:"a3",name:"Read for 30 minutes",cat:"Growth",type:"build",period:"week",target:5},
 {id:"a4",name:"Gaming session",cat:"Limits",type:"limit",period:"week",target:2},
 {id:"a5",name:"Sleep 7+ hours",cat:"Health",type:"metric",metric:"sleep",thr:7,period:"week",target:5},
-{id:"a6",name:"8,000+ steps",cat:"Health",type:"metric",metric:"steps",thr:8000,period:"week",target:5}],logs:[],m:{}}}
+{id:"a6",name:"8,000+ steps",cat:"Health",type:"metric",metric:"steps",thr:8000,period:"week",target:5},
+{id:"m1",name:"Resistance training",cat:"Health",type:"build",period:"week",target:2},
+{id:"m2",name:"Stretching session",cat:"Health",type:"build",period:"week",target:3},
+{id:"m3",name:"Creative (music, sketching, photography)",cat:"Growth",type:"build",period:"week",target:2},
+{id:"m4",name:"Journalling",cat:"Growth",type:"build",period:"week",target:1},
+{id:"c1",name:"Mopping",cat:"Chores",type:"build",period:"month",target:1},
+{id:"c2",name:"Deep clean kitchen",cat:"Chores",type:"build",period:"month",target:1},
+{id:"c3",name:"Deep clean bathroom",cat:"Chores",type:"build",period:"month",target:1},
+{id:"c4",name:"Deep clean bedroom",cat:"Chores",type:"build",period:"month",target:1},
+{id:"l1",name:"Drinking",cat:"Limits",type:"limit",period:"week",target:2}],logs:[],m:{},mig:["v2","v3","v4"]}}
+function addH(list){list.forEach(function(a){if(!S.habits.some(function(h){return h.name.toLowerCase()===a[1].toLowerCase()}))S.habits.push({id:a[0],name:a[1],cat:a[2],type:a[5]||"build",period:a[4]||"week",target:a[3]})})}
+function migrate(){S.mig=S.mig||[];var ch=false;
+if(S.mig.indexOf("v2")<0){S.habits.forEach(function(h){if(String(h.cat).toLowerCase()==="fitness")h.cat="Health"});
+addH([["m1","Resistance training","Health",2],["m2","Stretching session","Health",3],["m3","Creative (music, sketching, photography)","Growth",2],["m4","Journalling","Growth",1]]);S.mig.push("v2");ch=true}
+if(S.mig.indexOf("v3")<0){addH([["c1","Mopping","Chores",1,"month"],["c2","Deep clean kitchen","Chores",1,"month"],["c3","Deep clean bathroom","Chores",1,"month"],["c4","Deep clean bedroom","Chores",1,"month"]]);S.mig.push("v3");ch=true}
+if(S.mig.indexOf("v4")<0){addH([["l1","Drinking","Limits",2,"week","limit"]]);S.mig.push("v4");ch=true}
+return ch}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}push()}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
-function start(p,n){var d=new Date();d.setHours(0,0,0,0);
+function start(p,n,ref){var d=ref?new Date(ref+"T00:00:00"):new Date();d.setHours(0,0,0,0);
 if(p==="day")d.setDate(d.getDate()-n);
 else if(p==="week"){d.setDate(d.getDate()-((d.getDay()+6)%7)-7*n)}
 else{d.setDate(1);d.setMonth(d.getMonth()-n)}return d}
-function cnt(h,n){var a=start(h.period,n),b=n===0?null:start(h.period,n-1),as=iso(a),bs=b?iso(b):"9999";
+function cnt(h,n,ref){var a=start(h.period,n,ref),b=(n===0&&!ref)?null:start(h.period,n-1,ref),as=iso(a),bs=b?iso(b):"9999";
 if(h.type==="metric")return Object.keys(S.m).filter(function(d){var v=S.m[d][h.metric];return d>=as&&d<bs&&v>=h.thr}).length;
 return S.logs.filter(function(l){return l.h===h.id&&l.d>=as&&l.d<bs}).length}
 function sc(h,c){if(h.type!=="limit")return Math.min(c/h.target,1);
@@ -81,11 +103,21 @@ var PL={day:"today",week:"this week",month:"this month"},PN={day:"day",week:"wee
 function col(s,h){return h.type==="limit"&&s<1?"var(--bad)":"var(--good)"}
 function nav(){document.getElementById("nav").innerHTML=[["track","Track"],["dash","Dashboard"],["manage","Manage"]].map(function(t){
 return '<button data-tab="'+t[0]+'" class="'+(tab===t[0]?"on":"")+'">'+t[1]+'</button>'}).join("")}
-function track(){if(!S.habits.length)return '<div class="empty">No routines yet. Add one in Manage.</div>';
-return S.habits.map(function(h){var c=cnt(h,0),s=sc(h,c),pct=h.type!=="limit"?Math.min(100,c/h.target*100):Math.min(100,c/Math.max(h.target,1)*100),over=h.type==="limit"&&c>h.target;
+var sel=iso(new Date());
+function dcnt(h,d){return S.logs.filter(function(l){return l.h===h.id&&l.d===d}).length}
+function track(){var today=iso(new Date()),m=S.m[sel]||{},isT=sel===today,
+lab=new Date(sel+"T00:00:00").toLocaleDateString(undefined,{weekday:"long",month:"short",day:"numeric"});
+var out='<div class="card"><div class="row"><button class="act" data-day="-1" aria-label="Previous day">‹</button><div style="text-align:center;flex:1"><div class="name">'+lab+(isT?' (today)':'')+'</div><input type="date" id="dsel" value="'+sel+'" max="'+today+'" style="margin-top:6px" aria-label="Choose day"></div><button class="act" data-day="1" aria-label="Next day"'+(isT?' disabled':'')+'>›</button></div>'
++(isT?'':'<div style="margin-top:8px"><button class="small" data-day="0">Jump to today</button></div>')+'</div>';
+out+='<div class="card"><div class="meta" style="margin-bottom:6px">Steps and sleep for this day (filled automatically if Garmin sync is on)</div><form id="met"><div class="two"><label>Steps<input name="steps" type="number" min="0" value="'+(m.steps||'')+'"></label><label>Sleep (hours)<input name="sleep" type="number" min="0" step="0.1" value="'+(m.sleep||'')+'"></label></div><button class="primary" type="submit" style="margin-top:8px;width:100%">Save steps and sleep</button></form></div>';
+if(!S.habits.length)return out+'<div class="empty">No routines yet. Add one in Manage.</div>';
+return out+S.habits.map(function(h){var c=cnt(h,0,sel),dc=dcnt(h,sel),isM=h.type==="metric",lim=h.type==="limit",
+pct=lim?Math.min(100,c/Math.max(h.target,1)*100):Math.min(100,c/h.target*100),over=lim&&c>h.target,ctl;
+if(isM){var v=m[h.metric]||0;ctl='<div class="meta" style="text-align:right">'+(v?Number(v).toLocaleString()+' '+h.metric:'no data')+'<br>'+(v>=h.thr&&v?'✓ goal met':'')+'</div>'}
+else if(h.period==="day"&&h.target>1){ctl='<div class="btns"><button data-minus="'+h.id+'" aria-label="Remove one">−</button><span class="name" style="min-width:24px;text-align:center">'+dc+'</span><button class="plus" data-plus="'+h.id+'" aria-label="Add one">+</button></div>'}
+else{ctl='<button class="sw'+(lim?' lim':'')+'" role="switch" aria-checked="'+(dc>0)+'" aria-label="'+esc(h.name)+' on this day" data-tog="'+h.id+'"></button>'}
 return '<div class="card"><div class="row"><div><div class="name">'+esc(h.name)+'<span class="tag">'+esc(h.cat)+'</span></div>'
-+'<div class="meta">'+c+' of '+h.target+(h.type==="limit"?' max ':h.type==="metric"?' days ('+h.metric+' ≥ '+h.thr+') ':' ')+PL[h.period]+(streak(h)?' · streak '+streak(h):'')+'</div></div>'
-+(h.type==="metric"?'<div class="meta">auto</div>':'<div class="btns"><button data-minus="'+h.id+'" aria-label="Remove one">−</button><button class="plus" data-plus="'+h.id+'" aria-label="Log one">+</button></div>')+'</div>'
++'<div class="meta">'+c+' of '+h.target+(lim?' max ':isM?' days ('+h.metric+' ≥ '+h.thr+') ':' ')+(isT?PL[h.period]:'in that '+PN[h.period])+(isT&&streak(h)?' · streak '+streak(h):'')+'</div></div>'+ctl+'</div>'
 +'<div class="bar"><i class="'+(over?"over":"")+'" style="width:'+pct+'%"></i></div></div>'}).join("")}
 function dash(){if(!S.habits.length)return '<div class="empty">Add routines to see your dashboard.</div>';
 var sc0=S.habits.map(function(h){return{h:h,c:cnt(h,0),s:sc(h,cnt(h,0))}});
@@ -113,32 +145,34 @@ function manage(){return '<div class="card"><form id="add"><label>Name<input nam
 +'<datalist id="cats">'+Array.from(new Set(S.habits.map(function(h){return h.cat}))).map(function(c){return '<option value="'+esc(c)+'">'}).join("")+'</datalist>'
 +'<button class="primary" type="submit">Add routine</button></form></div>'
 +'<h2>Your routines</h2>'+S.habits.map(function(h){return '<div class="card row"><div><div class="name">'+esc(h.name)+'</div><div class="meta">'+esc(h.cat)+' · '+(h.type==="limit"?'max ':'')+h.target+(h.type==="metric"?' days ('+h.metric+' ≥ '+h.thr+')':'')+' per '+PN[h.period]+'</div></div><button class="small" data-del="'+h.id+'">Delete</button></div>'}).join("")
-+'<h2>Today’s numbers</h2><div class="card"><form id="met"><div class="two"><label>Steps<input name="steps" type="number" min="0" value="'+((S.m[iso(new Date())]||{}).steps||'')+'"></label><label>Sleep (hours)<input name="sleep" type="number" min="0" step="0.1" value="'+((S.m[iso(new Date())]||{}).sleep||'')+'"></label></div><button class="primary" type="submit">Save numbers</button></form></div>'
 +'<h2>Sync with Google Sheets</h2><div class="card"><form id="cfg"><label>Web app URL<input name="url" value="'+esc(CFG.url)+'"></label><label>Token<input name="token" type="password" value="'+esc(CFG.token)+'"></label><button class="primary" type="submit">Save and sync</button><div class="meta" id="st">'+esc(ST)+'</div></form></div>'
 +'<h2>Backup and restore</h2><div class="card"><div class="meta" style="margin-bottom:8px">Your data stays in this browser only. Copy this text to move it to another device, or paste a backup and restore.</div>'
 +'<textarea id="bk" rows="4">'+esc(JSON.stringify(S))+'</textarea><div style="margin-top:8px;display:flex;gap:8px"><button class="small" data-act="restore">Restore from text</button><button class="small" data-act="reset">Clear all logs</button></div></div>'}
 function render(){nav();document.getElementById("view").innerHTML=tab==="track"?track():tab==="dash"?dash():manage()}
 document.addEventListener("click",function(e){var t=e.target.closest("button");if(!t)return;var d=t.dataset;
 if(d.tab){tab=d.tab}
-else if(d.plus){S.logs.push({h:d.plus,d:iso(new Date())});save()}
-else if(d.minus){for(var i=S.logs.length-1;i>=0;i--){if(S.logs[i].h===d.minus){S.logs.splice(i,1);break}}save()}
+else if(d.plus){S.logs.push({h:d.plus,d:sel});save()}
+else if(d.minus){for(var i=S.logs.length-1;i>=0;i--){if(S.logs[i].h===d.minus&&S.logs[i].d===sel){S.logs.splice(i,1);break}}save()}
 else if(d.del){if(!confirm("Delete this routine and its history?"))return;S.habits=S.habits.filter(function(h){return h.id!==d.del});S.logs=S.logs.filter(function(l){return l.h!==d.del});save()}
 else if(d.act==="restore"){try{var j=JSON.parse(document.getElementById("bk").value);if(!j.habits||!j.logs)throw 0;S=j;S.m=S.m||{};save()}catch(x){alert("That text is not a valid backup.");return}}
 else if(d.act==="reset"){if(!confirm("Remove all logged entries? Routines are kept."))return;S.logs=[];save()}
+else if(d.tog){var k=S.logs.findIndex(function(l){return l.h===d.tog&&l.d===sel});if(k>=0)S.logs.splice(k,1);else S.logs.push({h:d.tog,d:sel});save()}
+else if(d.day!==undefined){var t0=iso(new Date());if(d.day==="0")sel=t0;else{var x=new Date(sel+"T00:00:00");x.setDate(x.getDate()+parseInt(d.day));var nx=iso(x);if(nx<=t0)sel=nx}}
 else return;
 render()});
+document.addEventListener("change",function(e){if(e.target.id==="dsel"&&e.target.value&&e.target.value<=iso(new Date())){sel=e.target.value;render()}});
 document.addEventListener("submit",function(e){if(e.target.id!=="add")return;e.preventDefault();var f=new FormData(e.target);
 S.habits.push({id:"h"+Date.now(),name:f.get("name").trim(),cat:f.get("cat").trim(),type:f.get("type"),metric:f.get("metric"),thr:parseFloat(f.get("thr"))||0,period:f.get("period"),target:Math.max(1,parseInt(f.get("target"))||1)});save();render()});
 var CFG={url:"",token:""},ST="",pt;
 try{CFG=JSON.parse(localStorage.getItem(KEY+"-cfg"))||CFG}catch(e){}
 function setST(t){ST=t;var el=document.getElementById("st");if(el)el.textContent=t}
 function api(b){return fetch(CFG.url,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(Object.assign({token:CFG.token},b))}).then(function(r){return r.json()}).then(function(j){if(j.error)throw new Error(j.error);return j})}
-function push(){if(!CFG.url)return;clearTimeout(pt);pt=setTimeout(function(){api({action:"save",state:{habits:S.habits,logs:S.logs}}).then(function(){setST("Synced "+new Date().toLocaleTimeString())}).catch(function(e){setST("Sync failed: "+e.message)})},800)}
+function push(){if(!CFG.url)return;clearTimeout(pt);pt=setTimeout(function(){api({action:"save",state:{habits:S.habits,logs:S.logs,mig:S.mig}}).then(function(){setST("Synced "+new Date().toLocaleTimeString())}).catch(function(e){setST("Sync failed: "+e.message)})},800)}
 function pull(){if(!CFG.url)return;setST("Syncing…");fetch(CFG.url+"?action=load&token="+encodeURIComponent(CFG.token)).then(function(r){return r.json()}).then(function(j){if(j.error)throw new Error(j.error);
-if(j.state&&j.state.habits){S.habits=j.state.habits;S.logs=j.state.logs||[]}else push();
-S.m=j.metrics||{};try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}setST("Synced "+new Date().toLocaleTimeString());render()}).catch(function(e){setST("Sync failed: "+e.message)})}
+if(j.state&&j.state.habits){S.habits=j.state.habits;S.logs=j.state.logs||[];S.mig=j.state.mig||[]}else push();
+S.m=j.metrics||{};var ch=migrate();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}setST("Synced "+new Date().toLocaleTimeString());if(ch)push();render()}).catch(function(e){setST("Sync failed: "+e.message)})}
 document.addEventListener("submit",function(e){var id=e.target.id,f=new FormData(e.target);
-if(id==="met"){e.preventDefault();var d=iso(new Date()),m=S.m[d]||{};if(f.get("steps")!=="")m.steps=Number(f.get("steps"));if(f.get("sleep")!=="")m.sleep=Number(f.get("sleep"));S.m[d]=m;
+if(id==="met"){e.preventDefault();var d=sel,m=S.m[d]||{};if(f.get("steps")!=="")m.steps=Number(f.get("steps"));if(f.get("sleep")!=="")m.sleep=Number(f.get("sleep"));S.m[d]=m;
 try{localStorage.setItem(KEY,JSON.stringify(S))}catch(x){}
 if(CFG.url)api({action:"metric",date:d,steps:f.get("steps"),sleep:f.get("sleep")}).then(function(){setST("Synced")}).catch(function(x){setST("Sync failed: "+x.message)});render()}
 else if(id==="cfg"){e.preventDefault();CFG={url:f.get("url").trim(),token:f.get("token").trim()};try{localStorage.setItem(KEY+"-cfg",JSON.stringify(CFG))}catch(x){}pull()}});
